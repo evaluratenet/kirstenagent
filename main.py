@@ -28,7 +28,8 @@ ACCEPTED_EXTENSIONS = ('.pdf', '.xls', '.xlsx', '.csv', '.docx', '.txt')  # Excl
 async def analyze(
     request: Optional[UploadFile] = File(None),
     quotes: List[UploadFile] = File(...),
-    email: Optional[str] = Form(None)
+    email: Optional[str] = Form(None),
+    target_currency: Optional[str] = Form("USD")
 ):
     if not quotes or len(quotes) < 2:
         return JSONResponse(
