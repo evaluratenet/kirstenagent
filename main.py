@@ -22,7 +22,7 @@ CSV_LOG_DIR = "csv_log"
 os.makedirs(CSV_LOG_DIR, exist_ok=True)
 
 # Supported file extensions
-ACCEPTED_EXTENSIONS = ('.pdf', '.xls', '.xlsx', '.csv', '.docx', '.txt')  # Excludes .doc due to compatibility issues
+ACCEPTED_EXTENSIONS = ('.pdf', '.xls', '.xlsx', '.csv', '.docx', '.doc', '.txt')  # Excludes .doc due to compatibility issues
 
 @app.post("/analyze")
 async def analyze(
