@@ -10,4 +10,4 @@ services:
     env: python
     schedule: "0 */6 * * *"  # Run every 6 hours
     buildCommand: pip install -r requirements.txt
-    startCommand: python src/fetch_exchange_rates.py
+    startCommand: python exchange_rates/src/fetch_exchange_rates.py
