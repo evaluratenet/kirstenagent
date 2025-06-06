@@ -11,3 +11,6 @@ services:
     schedule: "0 */6 * * *"  # Run every 6 hours
     buildCommand: pip install -r requirements.txt
     startCommand: python3 -u exchange_rates/src/fetch_exchange_rates.py 2>&1 | tee -a exchange_rates/data/cron.log
+    envVars:
+      - key: EXCHANGE_RATES_DIR
+        value: /opt/render/project/src/exchange_rates/data

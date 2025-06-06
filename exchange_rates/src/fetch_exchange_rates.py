@@ -4,8 +4,8 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-# Use a relative path for the output directory
-output_dir = Path(__file__).parent.parent / "data"
+# Use environment variable for output directory, fallback to local data directory
+output_dir = Path(os.getenv('EXCHANGE_RATES_DIR', Path(__file__).parent.parent / "data"))
 os.makedirs(output_dir, exist_ok=True)
 
 # Currencies to convert relative to USD
@@ -39,7 +39,7 @@ def fetch_exchange_rates():
         with open(output_dir / "latest.json", "w") as f:
             json.dump(exchange_rates, f, indent=2)
 
-        print("✅ Exchange rates updated successfully.")
+        print(f"✅ Exchange rates updated successfully. Files saved to: {output_dir}")
         return True
 
     except Exception as e:
