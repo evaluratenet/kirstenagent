@@ -1,0 +1,7 @@
+services:
+  - type: cron
+    name: exchange-rates-fetcher
+    env: python
+    schedule: "0 */6 * * *"  # Run every 6 hours
+    buildCommand: pip install -r requirements.txt
+    startCommand: python src/fetch_exchange_rates.py 
