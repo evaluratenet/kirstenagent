@@ -44,8 +44,10 @@ def fetch_exchange_rates():
         response = requests.get(url, timeout=10)
         print("API status code:", response.status_code)
         print("API response text:", response.text[:200])  # Print first 200 chars for debugging
+
         if response.status_code != 200:
             raise Exception(f"API request failed with status {response.status_code}: {response.text}")
+
         data = response.json()
 
         # Upload full API response to debug.json
