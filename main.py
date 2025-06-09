@@ -9,6 +9,7 @@ import pandas as pd
 from fastapi.responses import FileResponse
 import json
 import logging
+import sys
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
