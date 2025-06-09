@@ -10,7 +10,7 @@ def gdrive_auth():
     
     # Check if client_secrets.json exists
     if not os.path.exists('client_secrets.json'):
-        raise FileNotFoundError("client_secrets.json not found. Please download it from Google Cloud Console.")
+        raise FileNotFoundError("client_secrets.json not found. Please download it from Google Cloud Console for kirstenagent project.")
     
     # Load client secrets
     gauth.LoadClientConfigFile('client_secrets.json')
