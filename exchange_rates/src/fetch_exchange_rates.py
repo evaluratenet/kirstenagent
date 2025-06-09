@@ -76,17 +76,20 @@ def get_or_create_folder(drive, folder_name):
 
 def upload_to_gdrive(drive, content, gdrive_filename, folder_id):
     # Search for an existing file with the same name in the folder
-    file_list = drive.ListFile({
-        'q': f"title='{gdrive_filename}' and '{folder_id}' in parents and trashed=false"
-    }).GetList()
+    query = (
+        f"title='{gdrive_filename}' and "
+        f"'{folder_id}' in parents and "
+        "trashed=false"
+    )
+    file_list = drive.ListFile({'q': query}).GetList()
     if file_list:
-        # Overwrite the first found file
+        print(f"Found {len(file_list)} file(s) named {gdrive_filename} in folder {folder_id}. Overwriting the first one.")
         file1 = drive.CreateFile({'id': file_list[0]['id']})
         file1.SetContentString(content)
         file1.Upload()
         print(f"Overwritten {gdrive_filename} in Google Drive folder ID {folder_id}")
     else:
-        # Create a new file if it doesn't exist
+        print(f"No existing {gdrive_filename} found in folder {folder_id}. Creating new file.")
         file1 = drive.CreateFile({'title': gdrive_filename, 'parents': [{'id': folder_id}]})
         file1.SetContentString(content)
         file1.Upload()
