@@ -4,33 +4,44 @@ from datetime import datetime
 from pydrive2.auth import GoogleAuth
 from pydrive2.drive import GoogleDrive
 import os
+import tempfile
 
 def gdrive_auth():
     gauth = GoogleAuth()
     
-    # Check if client_secrets.json exists
-    if not os.path.exists('client_secrets.json'):
-        raise FileNotFoundError("client_secrets.json not found. Please download it from Google Cloud Console for kirstenagent project.")
+    # Get client secrets from environment variable
+    client_secrets = os.getenv('CLIENT_SECRETS_JSON')
+    if not client_secrets:
+        raise ValueError("CLIENT_SECRETS_JSON environment variable not found")
     
-    # Load client secrets
-    gauth.LoadClientConfigFile('client_secrets.json')
+    # Create a temporary file with the client secrets
+    with tempfile.NamedTemporaryFile(mode='w', delete=False) as temp_file:
+        temp_file.write(client_secrets)
+        temp_file_path = temp_file.name
     
-    # Try to load existing credentials
-    if os.path.exists("mycreds.txt"):
-        gauth.LoadCredentialsFile("mycreds.txt")
-    
-    # If no credentials or they're expired, authenticate
-    if gauth.credentials is None or gauth.access_token_expired:
-        # Set access_type to offline to get refresh token
-        gauth.GetFlow()
-        gauth.flow.params['access_type'] = 'offline'
-        gauth.flow.params['approval_prompt'] = 'force'
-        gauth.LocalWebserverAuth()
-        gauth.SaveCredentialsFile("mycreds.txt")
-    else:
-        gauth.Authorize()
-    
-    return GoogleDrive(gauth)
+    try:
+        # Load client secrets from temporary file
+        gauth.LoadClientConfigFile(temp_file_path)
+        
+        # Try to load existing credentials
+        if os.path.exists("mycreds.txt"):
+            gauth.LoadCredentialsFile("mycreds.txt")
+        
+        # If no credentials or they're expired, authenticate
+        if gauth.credentials is None or gauth.access_token_expired:
+            # Set access_type to offline to get refresh token
+            gauth.GetFlow()
+            gauth.flow.params['access_type'] = 'offline'
+            gauth.flow.params['approval_prompt'] = 'force'
+            gauth.LocalWebserverAuth()
+            gauth.SaveCredentialsFile("mycreds.txt")
+        else:
+            gauth.Authorize()
+        
+        return GoogleDrive(gauth)
+    finally:
+        # Clean up the temporary file
+        os.unlink(temp_file_path)
 
 def get_or_create_folder(drive, folder_name):
     file_list = drive.ListFile({
