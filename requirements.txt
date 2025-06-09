@@ -4,3 +4,4 @@ fastapi
 uvicorn
 python-multipart
 pydrive2
+pandas>=2.0.0
