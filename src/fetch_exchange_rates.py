@@ -3,17 +3,33 @@ import json
 from datetime import datetime
 from pydrive2.auth import GoogleAuth
 from pydrive2.drive import GoogleDrive
+import os
 
 def gdrive_auth():
     gauth = GoogleAuth()
-    gauth.LoadCredentialsFile("mycreds.txt")
-    if gauth.credentials is None:
+    
+    # Check if client_secrets.json exists
+    if not os.path.exists('client_secrets.json'):
+        raise FileNotFoundError("client_secrets.json not found. Please download it from Google Cloud Console.")
+    
+    # Load client secrets
+    gauth.LoadClientConfigFile('client_secrets.json')
+    
+    # Try to load existing credentials
+    if os.path.exists("mycreds.txt"):
+        gauth.LoadCredentialsFile("mycreds.txt")
+    
+    # If no credentials or they're expired, authenticate
+    if gauth.credentials is None or gauth.access_token_expired:
+        # Set access_type to offline to get refresh token
+        gauth.GetFlow()
+        gauth.flow.params['access_type'] = 'offline'
+        gauth.flow.params['approval_prompt'] = 'force'
         gauth.LocalWebserverAuth()
-    elif gauth.access_token_expired:
-        gauth.Refresh()
+        gauth.SaveCredentialsFile("mycreds.txt")
     else:
         gauth.Authorize()
-    gauth.SaveCredentialsFile("mycreds.txt")
+    
     return GoogleDrive(gauth)
 
 def get_or_create_folder(drive, folder_name):
@@ -38,9 +54,10 @@ target_currencies = ["SGD", "EUR", "CNY", "JPY", "HKD", "INR", "IDR", "THB", "VN
 url = f"https://open.er-api.com/v6/latest/{base_currency}"
 
 def fetch_exchange_rates():
-    drive = gdrive_auth()
-    folder_id = get_or_create_folder(drive, "exchange_rates")
     try:
+        drive = gdrive_auth()
+        folder_id = get_or_create_folder(drive, "exchange_rates")
+        
         response = requests.get(url, timeout=10)
         print("API status code:", response.status_code)
         print("API response text:", response.text[:200])  # Print first 200 chars for debugging
@@ -73,7 +90,10 @@ def fetch_exchange_rates():
     except Exception as e:
         # Upload error log to Google Drive
         error_content = f"{datetime.now()}: {str(e)}\n"
-        upload_to_gdrive(drive, error_content, "error.log", folder_id)
+        try:
+            upload_to_gdrive(drive, error_content, "error.log", folder_id)
+        except:
+            print("Could not upload error log to Google Drive")
         print(f"❌ Failed to fetch exchange rates: {e}")
         return False
 
