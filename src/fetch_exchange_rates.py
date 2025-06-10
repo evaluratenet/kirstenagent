@@ -12,6 +12,7 @@ EXCHANGE_RATES_DIR = os.path.join(os.path.dirname(__file__), "exchange_rates")
 
 def fetch_exchange_rates():
     try:
+        print("EXCHANGE_RATES_DIR will be:", EXCHANGE_RATES_DIR)
         os.makedirs(EXCHANGE_RATES_DIR, exist_ok=True)
         
         response = requests.get(url, timeout=10)
