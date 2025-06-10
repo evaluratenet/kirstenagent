@@ -7,8 +7,8 @@ base_currency = "USD"
 target_currencies = ["SGD", "EUR", "CNY", "JPY", "HKD", "INR", "IDR", "THB", "VND", "AUD"]
 url = f"https://open.er-api.com/v6/latest/{base_currency}"
 
-# Use a directory named 'exchange_rates' in the same directory as this script
-EXCHANGE_RATES_DIR = os.path.join(os.path.dirname(__file__), "exchange_rates")
+# Use an absolute path for exchange rates storage on Render
+EXCHANGE_RATES_DIR = "/opt/render/project/src/exchange_rates"
 
 def fetch_exchange_rates():
     try:
