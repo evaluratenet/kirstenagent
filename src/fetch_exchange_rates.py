@@ -3,6 +3,9 @@ import json
 from datetime import datetime
 import os
 
+print("Running script from:", os.path.abspath(__file__))
+print("EXCHANGE_RATES_DIR will be:", "/opt/render/project/src/exchange_rates")
+
 base_currency = "USD"
 target_currencies = ["SGD", "EUR", "CNY", "JPY", "HKD", "INR", "IDR", "THB", "VND", "AUD"]
 url = f"https://open.er-api.com/v6/latest/{base_currency}"
