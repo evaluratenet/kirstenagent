@@ -7,7 +7,8 @@ base_currency = "USD"
 target_currencies = ["SGD", "EUR", "CNY", "JPY", "HKD", "INR", "IDR", "THB", "VND", "AUD"]
 url = f"https://open.er-api.com/v6/latest/{base_currency}"
 
-EXCHANGE_RATES_DIR = "/home5/evalurat/drv.evalurate.net/kirsten/exchange_rates"
+# Use a directory named 'exchange_rates' in the same directory as this script
+EXCHANGE_RATES_DIR = os.path.join(os.path.dirname(__file__), "exchange_rates")
 
 def fetch_exchange_rates():
     try:
@@ -47,8 +48,13 @@ def fetch_exchange_rates():
     except Exception as e:
         # Save error log locally
         error_content = f"{datetime.now()}: {str(e)}\n"
-        with open(os.path.join(EXCHANGE_RATES_DIR, "error.log"), "a") as f:
-            f.write(error_content)
+        # Ensure the directory exists before writing the error log
+        try:
+            os.makedirs(EXCHANGE_RATES_DIR, exist_ok=True)
+            with open(os.path.join(EXCHANGE_RATES_DIR, "error.log"), "a") as f:
+                f.write(error_content)
+        except Exception as log_error:
+            print(f"Could not write error log: {log_error}")
         print(f"❌ Failed to fetch exchange rates: {e}")
         return False
 
