@@ -1,140 +1,99 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from typing import List
-import os
-from pydrive2.auth import GoogleAuth
-from pydrive2.drive import GoogleDrive
-import tempfile
-import pandas as pd
-from fastapi.responses import FileResponse
-import json
-import logging
-import sys
+kirstenagent/main.py
+# Purpose: FastAPI app for demo/testing. Logs uploads, checks congestion alerts, and summarizes uploaded quotes. Does NOT perform LLM-based extraction or quote comparison.
+# Used for local development or demonstration, not for production quote extraction.
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from fastapi import FastAPI, UploadFile, File, Form
+from typing import List, Optional
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+import os
+import csv
+import datetime
 
 app = FastAPI()
 
-class ProcessRequest(BaseModel):
-    comparison_id: str
-    currency: str
-    file_ids: List[str]
+# Allow CORS for all domains (for testing and flexibility)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-def authenticate_google_drive():
-    """Authenticate with Google Drive using service account credentials."""
-    try:
-        # Get credentials from environment variable
-        credentials_json = os.getenv('GOOGLE_DRIVE_CREDENTIALS')
-        if not credentials_json:
-            raise ValueError("GOOGLE_DRIVE_CREDENTIALS environment variable not set")
-        
-        # Save credentials to temporary file
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
-            f.write(credentials_json)
-            credentials_path = f.name
-        
+# Directories
+CONGESTION_ALERTS_DIR = "congestion_alerts"
+CSV_LOG_DIR = "csv_log"
+os.makedirs(CSV_LOG_DIR, exist_ok=True)
+
+# Supported file extensions
+ACCEPTED_EXTENSIONS = ('.pdf', '.xls', '.xlsx', '.csv', '.docx', '.doc', '.txt')  # Excludes .doc due to compatibility issues
+
+@app.post("/analyze")
+async def analyze(
+    request: Optional[UploadFile] = File(None),
+    quotes: List[UploadFile] = File(...),
+    email: Optional[str] = Form(None),
+    target_currency: Optional[str] = Form("USD")
+):
+    if not quotes or len(quotes) < 2:
+        return JSONResponse(
+            content={"error": "At least two quote files must be uploaded for comparison."},
+            status_code=400
+        )
+
+    # === Handle optional request file ===
+    request_summary = "No original request provided.\n"
+    if request:
         try:
-            # Initialize GoogleAuth
-            gauth = GoogleAuth()
-            gauth.LoadCredentialsFile(credentials_path)
-            
-            if gauth.credentials is None:
-                raise ValueError("Failed to load Google Drive credentials")
-            
-            # Create and return GoogleDrive instance
-            return GoogleDrive(gauth)
-        finally:
-            # Clean up the temporary file
-            try:
-                os.unlink(credentials_path)
-            except:
-                pass
-                
-    except Exception as e:
-        logger.error(f"Authentication error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Authentication error: {str(e)}")
+            await request.read()
+            request_summary = f"Original request: {request.filename}\n"
+        except Exception:
+            request_summary = "⚠️ Could not read request file.\n"
 
-def download_file_from_drive(drive, file_id, temp_dir):
-    """Download a file from Google Drive to a temporary location."""
-    try:
-        file = drive.CreateFile({'id': file_id})
-        temp_path = os.path.join(temp_dir, file['title'])
-        file.GetContentFile(temp_path)
-        return temp_path
-    except Exception as e:
-        logger.error(f"Error downloading file {file_id}: {str(e)}")
-        return None
+    # === Handle quotes ===
+    quote_summaries = []
+    for quote in quotes:
+        ext = os.path.splitext(quote.filename)[1].lower()
+        if ext not in ACCEPTED_EXTENSIONS:
+            quote_summaries.append(f"{quote.filename} ❌ (unsupported file type)")
+            continue
+        try:
+            content = await quote.read()
+            quote_summaries.append(f"{quote.filename} ✅ ({len(content)} bytes)")
+        except Exception as e:
+            quote_summaries.append(f"{quote.filename} ⚠️ (read error: {str(e)})")
 
-def extract_quotes_from_pdf(pdf_path, currency):
-    """Extract quotes from a PDF file."""
-    # TODO: Add your existing PDF processing logic here
-    # For now, return dummy data
-    return {
-        'carrier': 'Dummy Carrier',
-        'rate': 100.0,
-        'currency': currency,
-        'validity': '30 days'
-    }
+    # === Scan congestion alerts ===
+    alert_summary = ""
+    if os.path.exists(CONGESTION_ALERTS_DIR):
+        alert_files = os.listdir(CONGESTION_ALERTS_DIR)
+        if alert_files:
+            alert_summary = "⚠️ Port/Airport congestion alerts detected:\n"
+            for fname in alert_files:
+                if any(k in fname.lower() for k in ["congestion", "delay"]):
+                    alert_summary += f"• {fname}\n"
 
-@app.post("/process")
-async def process_files(request: ProcessRequest):
-    try:
-        # Authenticate with Google Drive
-        drive = authenticate_google_drive()
-        
-        # Create a temporary directory for downloaded files
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Download all files
-            downloaded_files = []
-            for file_id in request.file_ids:
-                try:
-                    file = drive.CreateFile({'id': file_id})
-                    temp_path = os.path.join(temp_dir, file['title'])
-                    file.GetContentFile(temp_path)
-                    downloaded_files.append(temp_path)
-                except Exception as e:
-                    logger.error(f"Error downloading file {file_id}: {str(e)}")
-                    raise HTTPException(status_code=500, detail=f"Error downloading file {file_id}: {str(e)}")
-            
-            if not downloaded_files:
-                raise HTTPException(status_code=400, detail="No files were successfully downloaded")
-            
-            # Process each file
-            results = []
-            for file_path in downloaded_files:
-                try:
-                    quote_data = extract_quotes_from_pdf(file_path, request.currency)
-                    results.append({
-                        'file': os.path.basename(file_path),
-                        **quote_data
-                    })
-                except Exception as e:
-                    logger.error(f"Error processing file {file_path}: {str(e)}")
-                    results.append({
-                        'file': os.path.basename(file_path),
-                        'error': str(e)
-                    })
-            
-            # Create Excel file
-            df = pd.DataFrame(results)
-            
-            # Save results to temporary file
-            output_file = os.path.join(temp_dir, f"{request.comparison_id}_comparison.xlsx")
-            df.to_excel(output_file, index=False)
-            
-            # Return the file
-            return FileResponse(
-                output_file,
-                media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                filename=f"{request.comparison_id}_comparison.xlsx"
-            )
-            
-    except Exception as e:
-        logger.error(f"Processing error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    # === Log CSV summary ===
+    today = datetime.datetime.now().strftime('%Y-%m-%d')
+    csv_path = os.path.join(CSV_LOG_DIR, f"summary_{today}.csv")
+    with open(csv_path, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        for quote in quotes:
+            writer.writerow([today, quote.filename, email or "N/A"])
 
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy"} 
+    # === Build output summary ===
+    summary = f"""
+📦 Quote Comparison Summary
+-----------------------------
+{request_summary}
+Quotes uploaded:
+{chr(10).join(quote_summaries)}
+
+{alert_summary or '✅ No port congestion alerts found.'}
+
+✅ Quotes successfully analyzed.
+"""
+    if email:
+        summary += f"\n📧 A copy has been sent to {email} (simulated)."
+
+    return {"result": summary.strip()}
