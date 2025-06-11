@@ -1,0 +1,12 @@
+import openai
+import os
+
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+try:
+    models = openai.models.list()
+    print("✅ Available models:")
+    for m in models.data:
+        print("-", m.id)
+except Exception as e:
+    print("❌ Error:", e)
