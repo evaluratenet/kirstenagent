@@ -1,14 +1,17 @@
 services:
   - type: web
-    name: freight-agent
+    name: kirsten-api
     env: python
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "uvicorn main:app --host=0.0.0.0 --port=10000"
+    buildCommand: pip install -r requirements_render.txt
+    startCommand: uvicorn main:app --host=0.0.0.0 --port=10000
     plan: free
+    rootDir: api
 
-  - type: cron
-    name: exchange-rates-fetcher
+  - type: web
+    name: kirsten-agent
     env: python
-    schedule: "0 */6 * * *"  # Runs every 6 hours
-    buildCommand: pip install -r requirements.txt
-    startCommand: python3 src/fetch_exchange_rates.py
+    buildCommand: pip install -r requirements_upload.txt
+    startCommand: python3 main.py
+    plan: free
+    rootDir: kirstenagent
+
